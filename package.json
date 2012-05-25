@@ -1,0 +1,10 @@
+{
+  "name": "cosm_test_data_generator",
+  "version": "0.0.0",
+  "bin": {
+    "cosm_test_data_generator": "./server.js"
+  }
+  "dependencies": {
+    "request": ""
+  }
+}
