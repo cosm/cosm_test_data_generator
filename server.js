@@ -82,6 +82,7 @@ setInterval(function() {
 
   request({
     url: url + "?key="+nconf.get("api_key"), 
+    method: 'PUT',
     body: body(now),
   }, function(error, response, body) {
     if (error) {
