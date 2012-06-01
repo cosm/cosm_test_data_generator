@@ -15,6 +15,8 @@ nconf
     "timer": 1000
   });
 
+var precision = 8;
+
 var bucket = function(period, now) {
   return now - (now % period);
 };
@@ -30,7 +32,7 @@ var text_functions = {
   random: function(period, now) {
     var shasum = crypto.createHash('md5');
     shasum.update(String(bucket(period, now)));
-    return (parseInt(shasum.digest('hex').slice(0,4), 16) / parseInt('ffff', 16)).toFixed(4);
+    return (parseInt(shasum.digest('hex').slice(0,4), 16) / parseInt('ffff', 16)).toFixed(precision);
   }
 };
 
@@ -38,7 +40,7 @@ var wave_periods = [5,10,15,30,60,300,900,1800,3600]; // in seconds
 var wave_functions = {
   // Waves
   sine: function(period, now) {
-    return (Math.sin((20*now) / (period * Math.PI))).toFixed(4);
+    return (Math.sin((20*now) / (period * Math.PI))).toFixed(precision);
   },
   square: function(period, now) {
     var sine = this.sine(period, now);
@@ -52,10 +54,10 @@ var wave_functions = {
     }
   },
   sawtooth: function(period, now) {
-    return ((now % period) / period).toFixed(4);
+    return ((now % period) / period).toFixed(precision);
   },
   triangle: function(period, now) {
-    return (Math.abs(2*((now/period) - Math.floor((now/period) + .5)))).toFixed(4);
+    return (Math.abs(2*((now/period) - Math.floor((now/period) + .5)))).toFixed(precision);
   }
 };
 
