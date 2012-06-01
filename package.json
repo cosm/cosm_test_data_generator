@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "bin": {
     "cosm_test_data_generator": "./server.js"
-  }
+  },
   "dependencies": {
-    "request": ""
+    "request": "2.9.202",
+    "nconf": "0.5.1"
   }
 }

@@ -1,55 +1,93 @@
-var request = require("request");
+var request = require("request"),
+    crypto = require("crypto"),
+    nconf = require("nconf");
 
-var feed_id = "",
-    api_key = "",
-    periods = [1,5,10,15,30,60], // in minutes
-    timer = 5000; // every 5 seconds
+// Setup nconf to use (in-order):
+//   1. Command-line arguments
+//   2. Environment variables
+//   3. A file located at 'config.json'
+//
+nconf
+  .argv()
+  .env()
+  .file({ file: 'config.json' })
+  .defaults({
+    "timer": 1000
+  });
 
-var math_functions = {
+var bucket = function(period, now) {
+  return now - (now % period);
+};
+
+var text_periods = [1,5,10,15,30,60,300,900,1800,3600]; // in seconds
+var text_functions = {
+  // Binary toggles true-false
+  toggle: function(period, now) {
+    return wave_functions.square(period, now) >= 0
+  },
+
   // random between 0-1
-  random: function(period, time) {
-  },
-
-  // Waves
-  sine: function(period, time) {
-  },
-  square: function(period, time) {
-  },
-  triangle: function(period, time) {
-  },
-  sawtooth: function(period, time) {
-  },
-
-  // Binary toggles on-off
-  toggle: function(period, time) {
-  },
-
-  // Fuzzy Clock
-  text: function(period, time) {
+  random: function(period, now) {
+    var shasum = crypto.createHash('md5');
+    shasum.update(String(bucket(period, now)));
+    return (parseInt(shasum.digest('hex').slice(0,4), 16) / parseInt('ffff', 16)).toFixed(4);
   }
 };
 
-setInterval(function() {
-  var now = new Date(),
-      body = '';
+var wave_periods = [5,10,15,30,60,300,900,1800,3600]; // in seconds
+var wave_functions = {
+  // Waves
+  sine: function(period, now) {
+    return (Math.sin((20*now) / (period * Math.PI))).toFixed(4);
+  },
+  square: function(period, now) {
+    var sine = this.sine(period, now);
+    switch (true) {
+      case (sine > 0):
+        return 1;
+      case (sine < 0):
+        return -1;
+      default:
+        return 0;
+    }
+  },
+  sawtooth: function(period, now) {
+    return ((now % period) / period).toFixed(4);
+  },
+  triangle: function(period, now) {
+    return (Math.abs(2*((now/period) - Math.floor((now/period) + .5)))).toFixed(4);
+  }
+};
 
-  for (var func in math_functions) {
+var add = function(functions, periods, now) {
+  var str = '';
+  for (var func in functions) {
     for (var i=0; i < periods.length; i++) {
-      var result = math_functions[func](periods[i], now)
+      var result = functions[func](periods[i], now)
       if (typeof(result) !== 'undefined') {
-        body += result;
+        str += func + periods[i] + ',' + result + '\n';
       }
     }
   }
+  return str;
+};
+
+var body = function(now) {
+  return add(text_functions, text_periods, now) + add(wave_functions, wave_periods, now);
+};
+
+setInterval(function() {
+  var now = +(new Date()) / 1000, // now in seconds
+      url = "http://"+nconf.get("api")+"/v2/feeds/"+nconf.get("feed_id")+".csv"
 
   request({
-    url: "http://api.cosm.com/v2/feeds/"+feed_id+".csv?key="+api_key, 
-    body: ""
+    url: url + "?key="+nconf.get("api_key"), 
+    body: body(now),
   }, function(error, response, body) {
     if (error) {
-      console.log("Posted to Cosm feed: "+feed_id", error: "+error);
+      console.log("Posted to "+url+", error: "+error);
     } else {
-      console.log("Posted to Cosm feed: "+feed_id", response: "+response.statusCode);
+      console.log("Posted to "+url+", response: "+response.statusCode);
     }
   });
-}, timer);
+}, nconf.get("timer"));
