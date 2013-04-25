@@ -63,8 +63,25 @@ var wave_functions = {
   }
 };
 
+var location = function(now) {
+  var period = 5570, // ISS Orbital Period
+      inclination = 51.6, // ISS Orbital Inclination
+      lon = ((wave_functions.sawtooth(period, now) * 360) - 180),
+      lat = (wave_functions.sine(period, now) * inclination);
+
+  return {
+    name: "Orbit",
+    ele: "370000",
+    exposure: "outdoor",
+    domain: "physical",
+    disposition: "mobile",
+    lon: lon,
+    lat: lat
+  };
+};
+
 var add = function(functions, periods, now) {
-  var str = '',
+  var datastreams = [],
       prev_time = now - seconds(nconf.get("timer"));
 
   for (var func in functions) {
@@ -73,15 +90,23 @@ var add = function(functions, periods, now) {
           result = functions[func](periods[i], now);
 
       if (typeof(result) !== 'undefined' && result != prev) {
-        str += func + periods[i] + ',' + result + '\n';
+        datastreams.push({id: func + periods[i], current_value: result});
       }
     }
   }
-  return str;
+  return datastreams;
 };
 
 var body = function(now) {
-  return add(text_functions, text_periods, now) + add(wave_functions, wave_periods, now);
+  var datastreams = []
+        .concat(add(text_functions, text_periods, now))
+        .concat(add(wave_functions, wave_periods, now));
+
+  return JSON.stringify({
+    version: "1.0.0",
+    datastreams: datastreams,
+    location: location(now)
+  });
 };
 
 // Set a start delay to sync up with the system clock so we trigger just after each interval
@@ -91,7 +116,7 @@ var start_time = +(new Date()),
 setTimeout(function() {
   setInterval(function() {
     var now = seconds(new Date()), // current time in seconds
-        url = "http://"+nconf.get("api")+"/v2/feeds/"+nconf.get("feed_id")+".csv",
+        url = "http://"+nconf.get("api")+"/v2/feeds/"+nconf.get("feed_id")+".json",
         data = body(now);
 
     if (data != "") {
